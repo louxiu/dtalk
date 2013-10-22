@@ -24,6 +24,8 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include "debug.h"
+#include "daemon.h"
+#include "library.h"
 
 /* TODO: generate from config.in */
 #define DTALK_S_DIR ""
@@ -300,7 +302,7 @@ int main(int argc, char *argv[])
 
     if (check_pid(dtalk_s_pid_file)){
         fprintf (stderr,
-                 "%s is already running (%s exists) -- skipping daemon start",
+                 "%s is already running (%s exists) -- done",
                  daemon_name, dtalk_s_pid_file);
         return 1;
     }
@@ -310,7 +312,14 @@ int main(int argc, char *argv[])
     /* install signal handler */
     install_signals_handler();
 
+    /* initalize the common library: thread pool */
+    library_init();
+    
+    /* initalize the dtalk-s library */
+    daemon_init();
+    
  	/* start daemon (i.e. the threads in the thread-pool) */
+    /* daemon->start(); */
     
     /* main thread goes to run loop */
 	run();

@@ -7,9 +7,12 @@
  * 
  * 
  */
+#include <stdio.h>
+#include "debug.h"
+
+debug_type debugType = STDERR;
 
 int main(int argc, char *argv[])
 {   
-    
     return 0;
 }

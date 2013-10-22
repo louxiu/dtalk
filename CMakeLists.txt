@@ -4,12 +4,15 @@ project(dtalk)
 
 add_definitions(-std=c99 -g)
 
-include_directories(src/lib)
+include_directories(src/lib src/dtalk-s-lib)
 find_package(Threads)
 
 add_executable(dtalk-s 
   src/dtalk-s/dtalk-s.c
   src/lib/debug.c
+  src/dtalk-s-lib/daemon.c
+  src/lib/library.c
+  src/lib/utils.c
 )
 add_executable(dtalk-c 
   src/dtalk-c/dtalk-c.c
