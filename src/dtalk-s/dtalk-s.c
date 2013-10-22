@@ -20,8 +20,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <pthread.h>
 #include "debug.h"
-
 
 /* TODO: generate from config.in */
 #define DTALK_S_DIR ""
@@ -36,6 +38,7 @@ char *cmd = NULL;
 char *dtalk_s_pid_file = DTALK_S_PIDDIR "dtalk.pid";
 
 static char *config_file = NULL;
+static FILE *dtalk_s_fd = NULL;
 
 static int check_pid(const char *pid_file)
 {
@@ -82,7 +85,7 @@ static run_mode runMode = DEBUG;
 #define optional_argument	2
 
 
-/**
+/*
  * print command line usage and exit
  */
 static void usage(const char *msg)
@@ -131,6 +134,18 @@ void parse_option(int argc, char *argv[])
 	} /* end while */
 }
 
+/*
+ * drop daemon capabilities
+ */
+static int drop_capabilities()
+{
+    /* TODO: */
+    return 0;
+}
+
+/* 
+ * stroke the program to background
+ */
 static void run_as_daemon(run_mode type){
     /* fork if we're not debugging stuff */
 	if (type == DAEMON){
@@ -146,23 +161,27 @@ static void run_as_daemon(run_mode type){
 					dup2(fnull, STDERR_FILENO);
 					close(fnull);
 				}
-
+                
 				setsid();
 				log_ret("dtalk start");
+                /* TODO: drop capabilities */
+                drop_capabilities();
 			}
 			break;
 			case -1:
 				log_ret("can't fork: %s", strerror(errno));
 				break;
 			default:
+                /* dtalk-s wrapper: bye-bye */
 				exit(EXIT_SUCCESS);
 		} /* end switch */
         
         /* save pid file in /var/run/dtalk[.daemon_name].pid */
-        FILE *fd = fopen(dtalk_s_pid_file, "w");
-        if (fd){
-            fprintf(fd, "%u\n", getpid());
-            fclose(fd);
+        dtalk_s_fd = fopen(dtalk_s_pid_file, "w");
+        if (dtalk_s_fd){
+            fprintf(dtalk_s_fd, "%u\n", getpid());
+            fflush(dtalk_s_fd);
+            /* fclose(fd); */
         } else {
             log_quit("can not create pid file");
         }
@@ -170,6 +189,109 @@ static void run_as_daemon(run_mode type){
     else{
 		debugType = DEBUG;
     }
+}
+
+/*
+ * Handle fatal signals raised by threads
+ */
+static void fatal_signal_handler(int signal)
+{
+    /* TODO: backtrace the caller */
+	abort();
+}
+
+/*
+ * install signal handler for the daemon
+ */
+static void install_signals_handler()
+{
+    struct sigaction action;
+    /* handle these signals only in epoll() */
+	memset(&action, 0, sizeof(action));
+	sigemptyset(&action.sa_mask);
+    
+    /* add handler for SEGV and ILL,
+	 * INT, TERM and HUP are handled by sigwait() in run() */
+	action.sa_handler = fatal_signal_handler;
+	action.sa_flags = 0;
+	sigemptyset(&action.sa_mask);
+	sigaddset(&action.sa_mask, SIGINT);
+	sigaddset(&action.sa_mask, SIGTERM);
+	sigaddset(&action.sa_mask, SIGHUP);
+	sigaction(SIGSEGV, &action, NULL);
+	sigaction(SIGILL, &action, NULL);
+	sigaction(SIGBUS, &action, NULL);
+	action.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &action, NULL);
+
+	pthread_sigmask(SIG_SETMASK, &action.sa_mask, NULL);
+}
+
+/*
+ * Ignore result of functions tagged with warn_unused_result attributes
+ */
+#define ignore_result(call) { if(call){}; }
+
+static void unlink_pidfile()
+{
+	/* because unlinking the PID file may fail, we truncate it to ensure the
+	 * daemon can be properly restarted.  one probable cause for this is the
+	 * combination of not running as root and the effective user lacking
+	 * permissions on the parent dir(s) of the PID file */
+	if (dtalk_s_fd)
+	{
+        /* TODO: warning: implicit declaration */
+		ignore_result(ftruncate(fileno(dtalk_s_fd), 0));
+		fclose(dtalk_s_fd);
+	}
+	unlink(dtalk_s_pid_file);
+}
+
+/*
+ * run the daemon and handle unix signals
+ */
+static void run()
+{
+    sigset_t set;
+
+	/* handle SIGINT, SIGHUP ans SIGTERM in this handler */
+	sigemptyset(&set);
+	sigaddset(&set, SIGINT);
+	sigaddset(&set, SIGHUP);
+	sigaddset(&set, SIGTERM);
+	sigprocmask(SIG_BLOCK, &set, NULL);
+
+	while (1){
+		int sig;
+		int error;
+
+		error = sigwait(&set, &sig);
+		if (error){
+			log_ret("error %d while waiting for a signal", error);
+			return;
+		}
+		switch (sig){
+			case SIGHUP:
+            {
+				log_ret("signal of type SIGHUP received. Ignored");
+				break;
+			}
+			case SIGINT:
+            {
+				log_ret("signal of type SIGINT received. Shutting down");
+				return;
+			}
+			case SIGTERM:{
+				log_ret("signal of type SIGTERM received. Shutting down");
+				return;
+			}
+			default:
+			{
+				log_ret("unknown signal %d received. Ignored", sig);
+				break;
+			}
+		} /* end switch */
+	} /* end while */
 }
 
 int main(int argc, char *argv[])
@@ -180,11 +302,21 @@ int main(int argc, char *argv[])
         fprintf (stderr,
                  "%s is already running (%s exists) -- skipping daemon start",
                  daemon_name, dtalk_s_pid_file);
+        return 1;
     }
 
-    /* from here, use debug interface */
     run_as_daemon(runMode);
+
+    /* install signal handler */
+    install_signals_handler();
+
+ 	/* start daemon (i.e. the threads in the thread-pool) */
     
-    log_ret ("dtalk-s run success\n");
+    /* main thread goes to run loop */
+	run();
+
+    /* normal termination, cleanup and exit */
+	unlink_pidfile();
+
     return 0;
 }
