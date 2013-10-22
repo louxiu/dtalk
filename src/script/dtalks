@@ -1,0 +1,21 @@
+#! /bin/sh
+# prefix command to run stuff from our programs directory
+
+# define a minimum PATH environment in case it is not set
+PATH="/sbin:/bin:/usr/sbin:/usr/bin:@DTALKS_SBINDIR@"
+export PATH
+
+# name and version of the ipsec implementation
+DTALKS_NAME="@DTALKS_NAME@"
+DTALKS_VERSION="U@DTALKS_VERSION@/K`uname -r`"
+
+# where the private directory and the config files are
+DTALKS_DIR="@DTALKS_DIR@"
+DTALKS_SBINDIR="@DTALKS_SBINDIR@"
+DTALKS_CONFDIR="@DTALKS_CONFDIR@"
+DTALKS_PIDDIR="@DTALKS_PIDDIR@"
+
+DTALKS_PID="${DTALKS_PIDDIR}/dtalks.pid"
+
+export DTALKS_DIR DTALKS_SBINDIR DTALKS_CONFDIR DTALKS_PIDDIR DTALKS_VERSION DTALKS_NAME DTALKS_PID
+
