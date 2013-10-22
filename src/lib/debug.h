@@ -11,14 +11,19 @@
 #ifndef DEBUG_H_
 #define DEBUG_H_
 
-void log_open(const char *ident, int option, int facility);
-void log_msg (const char *fmt, ...);	
-void log_quit(const char *fmt, ...);
-void log_ret (const char *fmt, ...);
-void log_sys (const char *fmt, ...);
+void log_open (const char *ident, int option, int facility);
+void log_msg  (const char *fmt, ...);	
+void log_quit (const char *fmt, ...);
+void log_ret  (const char *fmt, ...);
+void log_sys  (const char *fmt, ...);
+void log_close();
 
-/* 0: stderr; other: syslog */
-extern int	log_to_stderr; 
+typedef enum debug_type{
+    STDERR,
+    SYSLOG
+}debug_type;
+
+extern debug_type debugType; 
 
 #endif /* DEBUG_H_ */
 

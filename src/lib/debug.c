@@ -20,16 +20,26 @@
 
 #define MAXLINE 4096									
 
-static void	log_doit(int, int, const char *, va_list ap);
+static void	log_doit(int errnoflag, int priority, const char *fmt, va_list ap);
 
 /*
  * initialize syslog(), if running as daemon.
  */
 void log_open(const char *ident, int option, int facility)
 {
-	if (log_to_stderr == 0){
+	if (debugType == SYSLOG){
 		openlog(ident, option, facility);
     }
+}
+
+/**
+ * deinitialize, if running as daemon.
+ */
+void log_close()
+{
+	if (debugType == SYSLOG){
+		closelog();
+	}
 }
 
 /*
@@ -41,7 +51,7 @@ void log_ret(const char *fmt, ...)
 	va_list		ap;
 
 	va_start(ap, fmt);
-	log_doit(1, LOG_ERR, fmt, ap);
+	log_doit(0, LOG_ERR, fmt, ap);
 	va_end(ap);
 }
 
@@ -54,7 +64,7 @@ void log_sys(const char *fmt, ...)
 	va_list		ap;
 
 	va_start(ap, fmt);
-	log_doit(1, LOG_ERR, fmt, ap);
+	log_doit(0, LOG_ERR, fmt, ap);
 	va_end(ap);
 	exit(2);
 }
@@ -101,23 +111,23 @@ static void log_doit(int errnoflag, int priority, const char *fmt, va_list ap)
                  strerror(errno_save));
     }
 	strcat(buf, "\n");
-	if (log_to_stderr){
+	if (debugType == STDERR){
 		fflush(stdout);
 		fputs(buf, stderr);
 		fflush(stderr);
-	} else {
+	} else if(debugType == SYSLOG){
 		syslog(priority, buf, strlen(buf));
 	}
 }
 
 #ifdef DEBUG_TEST
-int	log_to_stderr = 1;
+debug_type debugType = STDERR;
 int main(int argc, char *argv[])
 {   
     log_open("dstalk", LOG_PID|LOG_CONS, LOG_USER);
     log_ret("Hello world %d\n", 1);
 
-    log_to_stderr = 0;
+    debugType = SYSLOG;
     log_open("dstalk", LOG_PID|LOG_CONS, LOG_USER);
     log_ret("Hello world %d\n", 1);
     
