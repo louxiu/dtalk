@@ -35,10 +35,10 @@ struct database_t {
     int (*create_user)(database_t *database, user_t *user);
     int (*check_user)(database_t *database, user_t *user);    
     int (*delete_user)(database_t *database, user_t *user);
-    user_t *(*list_users)(database_t *database);
+    user_t *(*list_users)(database_t *database, int *row);
     
     int (*create_room)(database_t *database, room_t *room);
-    room_t *(*list_rooms)(database_t *database);
+    room_t *(*list_rooms)(database_t *database, int *row);
     int (*delete_room)(database_t *database, room_t *room);
 
     int (*save_log)(database_t *database, database_log_t *log);

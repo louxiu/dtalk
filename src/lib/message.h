@@ -26,21 +26,30 @@
   logout                 : []
   join room              : [room name]
   leave room             : [room name]
-  message                : [data]
+  message                : [[room name] [data]]
   list rooms             : []
   list users             : [room name]
+  create room            : [[room name][description]]
+  delete room            : [room name]  
+  list users             : [room name]  
   join success           : []
   join failed            : [data]
   login success          : []
   login failed           : [data]
   logout success         : []
-  join room success      : []
+  join room success      : [desc]
   join room failed       : [data]
-  list rooms success     : [[room name] [room name] ...]
-  list users success     : [[user name] [room name] ...]
+  list rooms success     : [room name]
+  list users success     : [user name]
   list rooms failed      : [data]
   list users failed      : [data]
+  create room success    : []
+  create room failed     : [data]
+  delete room success    : []
+  delete room failed     : [data]
+  
 */
+/* NOTE: join == register */
 
 #define VERSION_SIZE 1
 #define TYPE_SIZE    1
@@ -54,19 +63,24 @@
 #define MAX_USERNAME_SIZE 10 
 #define MAX_PASSWORD_SIZE 10
 #define MAX_ROOMNAME_SIZE 10
+#define MAX_DESC_SIZE     100
+
+#define VERSION '1'
 
 typedef struct message_t message_t;
 
 typedef enum message_type{
     INIT,                       /* initalize  */
-    JOIN,    
-    LOGIN,
-    LOGOUT,
-    JOIN_ROOM,
-    LEAVE_ROOM,
-    MESSAGE,
-    LIST_ROOMS,
-    LIST_USERS,
+    JOIN,               //user regist   
+    LOGIN,              //user login
+    LOGOUT,             //user logout
+    JOIN_ROOM,          //join room
+    LEAVE_ROOM,         //leave room
+    MESSAGE,            //send message
+    LIST_ROOMS,         //list all rooms
+    LIST_USERS,         //list a room's all users
+    CREATE_ROOM,
+    DELETE_ROOM,
     JOIN_SUCCESS,    
     JOIN_FAILED,
     LOGIN_SUCCESS,    
@@ -74,10 +88,16 @@ typedef enum message_type{
     LOGOUT_SUCCESS,
     JOIN_ROOM_SUCCESS,
     JOIN_ROOM_FAILED,
+    LEAVE_ROOM_SUCCESS,
+    LEAVE_ROOM_FAILED,
     LIST_ROOMS_SUCCESS,
     LIST_USERS_SUCCESS,
     LIST_ROOMS_FAILED,
     LIST_USERS_FAILED,
+    CREATE_ROOM_SUCCESS,
+    CREATE_ROOM_FAILED,  
+    DELETE_ROOM_SUCCESS,
+    DELETE_ROOM_FAILED,
     ECHO,                       /* for test */
     UNKNOWN_TYPE
 }message_type;
@@ -94,14 +114,20 @@ struct message_t {
     char *(*get_data)(message_t *this);    
     void  (*set_data)(message_t *this, char *data);
 
-    /* used in login and join*/
-    void (*get_username)(message_t *this, char *username);
-    void  (*set_username)(message_t *this, char *username);
+    /* used only in login and join */
+    void (*get_username_password)
+    (message_t *this, char *username, char *password);
 
-    /* used in login and join*/
-    void (*get_password)(message_t *this, char *password);
-    void  (*set_password)(message_t *this, char *password);
+    void  (*set_username_password)
+    (message_t *this, char *username, char *password);
 
+    /* used only in create romm */
+    void (*get_room_desc)
+    (message_t *this, char *room, char *desc);
+
+    void  (*set_room_desc)
+    (message_t *this, char *room, char *desc);
+    
     int (*get_fd)(message_t *this);
     void (*set_fd)(message_t *this, int fd);
     

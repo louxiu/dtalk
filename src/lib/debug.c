@@ -20,6 +20,8 @@
 
 #define MAXLINE 4096									
 
+debug_type debugType = STDERR;
+
 static void	log_doit(int errnoflag, int priority, const char *fmt, va_list ap);
 
 /*
@@ -121,7 +123,6 @@ static void log_doit(int errnoflag, int priority, const char *fmt, va_list ap)
 }
 
 #ifdef DEBUG_TEST
-debug_type debugType = STDERR;
 int main(int argc, char *argv[])
 {   
     log_open("dstalk", LOG_PID|LOG_CONS, LOG_USER);

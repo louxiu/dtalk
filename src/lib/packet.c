@@ -56,9 +56,14 @@ static void set_payload(private_packet_t *this, char *payload)
 
 static void packet_send(private_packet_t *this)
 {
-    int res;
-    res = write(this->fd, this->payload, this->size);
-    printf("res:%d, content:%s\n", res, this->payload);
+    int ret = write(this->fd, this->payload, this->size);
+    /* TODO: need to check return value? */
+    /* log_ret("fd: %d, %s, size:%d, ret = %d", this->fd, this->payload, this->size, ret); */
+    /* int i = 0; */
+    /* for(i = 0; i < this->size; ++i){ */
+    /*     log_ret("%c", *(this->payload + i)); */
+    /* } */
+
 }
 
 /* TODO: receive packet function */
@@ -75,18 +80,18 @@ packet_t *packet_create()
 {
 	private_packet_t *this = malloc(sizeof(private_packet_t));
 
-    this->public.get_payload = (char* (*)(packet_t *packet))get_payload;
+    this->public.get_payload = (char* (*)(packet_t *this))get_payload;
     this->public.set_payload =
-        (void (*)(packet_t *packet, char *payload))set_payload;
+        (void (*)(packet_t *this, char *payload))set_payload;
 
-    this->public.get_size = (int (*)(packet_t *packet))get_size;
-    this->public.set_size = (void (*)(packet_t *packet, int size))set_size;
+    this->public.get_size = (int (*)(packet_t *this))get_size;
+    this->public.set_size = (void (*)(packet_t *this, int size))set_size;
 
-    this->public.get_fd = (int (*)(packet_t *packet))get_fd;
-    this->public.set_fd = (void (*)(packet_t *packet, int fd))set_fd;
+    this->public.get_fd = (int (*)(packet_t *this))get_fd;
+    this->public.set_fd = (void (*)(packet_t *this, int fd))set_fd;
 
-    this->public.packet_send = (void (*)(packet_t *packet))packet_send;
-    this->public.destroy = (void (*)(packet_t *packet))destroy;
+    this->public.packet_send = (void (*)(packet_t *this))packet_send;
+    this->public.destroy = (void (*)(packet_t *this))destroy;
 
     this->payload = malloc(MAX_PACKET_SIZE * sizeof(char));
     this->fd = -1;

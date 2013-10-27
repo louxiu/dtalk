@@ -9,6 +9,7 @@
  */
 #include <arpa/inet.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include "message.h"
 
@@ -33,6 +34,8 @@ char *message_type_array[] = {
     "MESSAGE",
     "LIST_ROOMS",
     "LIST_USERS",
+    "CREATE_ROOM"
+    "DELETE ROOM"
     "JOIN_SUCCESS",    
     "JOIN_FAILED",
     "LOGIN_SUCCESS",    
@@ -40,14 +43,17 @@ char *message_type_array[] = {
     "LOGOUT_SUCCESS",
     "JOIN_ROOM_SUCCESS",
     "JOIN_ROOM_FAILED",
-    "LIST_ROOMS_CON_SUCCESS",
-    "LIST_ROOMS_END_SUCCESS",
-    "LIST_USERS_CON_SUCCESS",
-    "LIST_USERS_END_SUCCESS",
+    "LIST_ROOMS_SUCCESS",
+    "LIST_USERS_SUCCESS",
     "LIST_ROOMS_FAILED",
-    "LIST_USERS_FAILED" 
+    "LIST_USERS_FAILED",
+    "CREATE_ROOM_SUCCESS",
+    "CREATE_ROOM_FAILED",    
+    "DELETE_ROOM_SUCCESS",
+    "DELETE_ROOM_FAILED",
+    "ECHO",
+    "UNKNOWN_TYPE"
 };
-
 
 static char get_version(private_message_t *this)
 {
@@ -79,26 +85,40 @@ static void set_data(private_message_t *this, char *data)
     strncpy(this->data, data, DATA_SIZE);
 }
 
-static void get_username(private_message_t *this, char *username)
+static void get_username_password(private_message_t *this,
+                                  char *username, char *password)
 {
-    memcpy(username, this->data+(DATA_OFFSET), MAX_USERNAME_SIZE);
+    if (this->type == JOIN || this->type == LOGIN){
+        /* TODO: error prone */
+        sscanf(this->data, "%s %s", username, password);
+    }
 }
 
-static void set_username(private_message_t *this, char *username)
+static void set_username_password(private_message_t *this,
+                                  char *username, char *password)
 {
-    memcpy(this->data+(DATA_OFFSET), username, MAX_USERNAME_SIZE);
+    if (this->type == JOIN || this->type == LOGIN){
+        /* TODO: error prone */
+        sprintf(this->data, "%s %s", username, password);
+    }
 }
 
-static void get_password(private_message_t *this, char *password)
+static void get_room_desc(private_message_t *this,
+                          char *room, char *desc)
 {
-    memcpy(password, this->data+(DATA_OFFSET+MAX_USERNAME_SIZE),
-                  MAX_PASSWORD_SIZE);    
+    if (this->type == CREATE_ROOM){
+        /* TODO: error prone */
+        sscanf(this->data+(DATA_OFFSET), "%s %s", room, desc);
+    }
 }
 
-static void set_password(private_message_t *this, char *password)
+static void set_room_desc(private_message_t *this,
+                          char *room, char *desc)
 {
-    memcpy(this->data+(DATA_OFFSET+MAX_USERNAME_SIZE), password,
-           MAX_PASSWORD_SIZE);
+    if (this->type == CREATE_ROOM){
+        /* TODO: error prone */
+        sprintf(this->data+(DATA_OFFSET), "%s %s", room, desc);
+    }
 }
 
 static int get_fd(private_message_t *this)
@@ -160,6 +180,10 @@ static void parse_packet(private_message_t *this, packet_t *packet)
 static private_message_t * message_create_init()
 {
     private_message_t *this = malloc(sizeof(private_message_t));
+    if (this == NULL){
+        log_ret("message_create_init: malloc failed");
+        exit(EXIT_FAILURE);
+    }
     
     this->public.get_version = (char (*)(message_t *message))get_version;
     this->public.set_version =
@@ -176,19 +200,36 @@ static private_message_t * message_create_init()
     this->public.set_fd =
         (void (*)(message_t *message, int fd))set_fd;
 
-    this->public.get_username = (void (*)(message_t *message, char *username))get_username;
-    this->public.set_username =
-        (void (*)(message_t *message, char *username))set_username;
+    this->public.get_username_password =
+        (void (*)(message_t *message, char *username, char *password))
+        get_username_password;
 
-    this->public.get_password = (void (*)(message_t *message, char *password))get_password;
-    this->public.set_password = (void (*)(message_t *message, char *password))set_password;
+    this->public.set_username_password =
+        (void (*)(message_t *message, char *username, char *password))
+        set_username_password;
+
+    this->public.get_room_desc =
+        (void (*)(message_t *message, char *room, char *desc))
+        get_room_desc;
+
+    this->public.set_room_desc =
+        (void (*)(message_t *message, char *room, char *desc))
+        set_room_desc;
     
     this->public.get_packet =
         (packet_t *(*)(message_t *this))get_packet;
         
     this->public.destroy = (void (*)(message_t *message))destroy;
 
+    this->type = INIT;
+    this->version = '1';
+    
     this->data = malloc(DATA_SIZE * sizeof(char));
+    if (this->data == NULL){
+        log_ret("message_create_init: malloc failed");
+        exit(EXIT_FAILURE);
+    }
+    memset(this->data, 0, DATA_SIZE);
     
     return this;
 }
@@ -211,7 +252,7 @@ message_t *message_create()
 {
     private_message_t *this = message_create_init();
     
-    this->version = '0';
+    this->version = '1';
     this->type    = INIT;
     this->fd      = -1;
     

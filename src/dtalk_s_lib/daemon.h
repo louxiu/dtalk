@@ -43,4 +43,10 @@
    4. The main thread handle the start, stop, segment detect, etc.
 */   
 
+#include "online_rooms.h"
+#include "online_users.h"
+
+extern online_users_t *online_users;
+extern online_rooms_t *online_rooms;
+    
 void daemon_init();

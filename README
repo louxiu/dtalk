@@ -1,0 +1,20 @@
+1. configure to current install directory
+   ./configure --prefix=`pwd`/install
+
+2. compile and install
+   make && make install
+
+3. server
+   3.1 configure the port
+       vim install/share/dtalk/dtalk_s.conf
+   3.2 run the server (debug mode)
+       sudo ./install/bin/dtalk_s 
+   3.3 run the server (daemon mode)
+       sudo ./install/bin/dtalk_s -d
+
+4. client 
+   4.1 configure the ip and port
+       vim install/share/dtalk/dtalk_c.conf
+   4.2 run the client 
+       ./install/bin/dtalk_c
+       /help call the help command

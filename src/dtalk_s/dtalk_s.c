@@ -27,7 +27,6 @@
 #include "daemon.h"
 #include "library.h"
 
-/* TODO: generate from config.in */
 #define DTALK_S_DIR ""
 /* TODO: use /var/dtalk instead */
 #define DTALK_S_PIDDIR "/var/run/"
@@ -71,9 +70,7 @@ static int check_pid(const char *pid_file)
 /*
  * TODO: generate from config.h.in
  * */
-#define VERSION "0.0.1"
-
-debug_type debugType = STDERR;
+/* #define VERSION "0.0.1" */
 
 typedef enum run_mode{
     DAEMON,
@@ -92,7 +89,7 @@ static run_mode runMode = DEBUG;
  */
 static void usage(const char *msg)
 {
-	if (msg != NULL && *msg != '\0'){
+	if ((msg != NULL) && (*msg != '\0')){
 		fprintf(stderr, "%s\n", msg);
 	}
 	fprintf(stderr, "Usage: dtalks\n"
@@ -118,7 +115,7 @@ void parse_option(int argc, char *argv[])
 				status = 1;
                 break;
 			case 'v':
-				printf("dtalks %s\n", VERSION);
+				printf("dtalks %c\n", VERSION);
 				status = 1;
                 break;
 			case 'd':
@@ -130,7 +127,7 @@ void parse_option(int argc, char *argv[])
 				status = 1;
                 break;
 		}
-        if(status == 1){
+        if (status == 1){
             exit(EXIT_FAILURE);
         }
 	} /* end while */
@@ -189,7 +186,7 @@ static void run_as_daemon(run_mode type){
         }
 	} /* end if */
     else{
-		debugType = DEBUG;
+		debugType = STDERR;
     }
 }
 
@@ -298,6 +295,8 @@ static void run()
 
 int main(int argc, char *argv[])
 {
+	debugType = STDERR;
+
     parse_option(argc, argv);
 
     if (check_pid(dtalk_s_pid_file)){
@@ -320,7 +319,7 @@ int main(int argc, char *argv[])
     
  	/* start daemon (i.e. the threads in the thread-pool) */
     /* daemon->start(); */
-    
+
     /* main thread goes to run loop */
 	run();
 

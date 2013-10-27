@@ -53,6 +53,7 @@ char *sql_init[SQL_INIT_SIZE] = {
     "rooms(roomname varchar(128), username varchar(128), "\
     "details varchar(1024), FOREIGN KEY(username) REFERENCES users(username))"
 };
+static int create_default_user_room(private_database_t *this);
 
 static int open_db(private_database_t *this, char *db_name)
 {
@@ -70,6 +71,7 @@ static int open_db(private_database_t *this, char *db_name)
                 return -1;
             }
         }
+        create_default_user_room(this);
 		log_ret("database open success");
     }
 	return 0;
@@ -225,7 +227,7 @@ static int create_room(private_database_t *this, room_t *room)
     }
 	return 0;
 }
-static user_t *list_users(private_database_t *this)
+static user_t *list_users(private_database_t *this, int *row)
 {
 	char sql_buffer[MAX_SQL_SIZE] = {'\0'};
 
@@ -239,6 +241,10 @@ static user_t *list_users(private_database_t *this)
 	if (res == SQLITE_OK)
 	{
         users = (struct user_t*)malloc(nrow*sizeof(struct user_t));
+        if (users == NULL){
+            log_ret("list_users: malloc failed");
+            exit(EXIT_FAILURE);
+        }
 		int index = ncolumn;
         int i = 0;
 		for(i = 0; i < nrow; i++)
@@ -252,12 +258,13 @@ static user_t *list_users(private_database_t *this)
 			index++;
 		}
 	}
+    *row = nrow;
 	sqlite3_free_table(user_list);
 	return users;
 
 }
 
-static room_t *list_rooms(private_database_t *this)
+static room_t *list_rooms(private_database_t *this, int *row)
 {
 	char sql_buffer[MAX_SQL_SIZE] = {'\0'};
 
@@ -267,27 +274,41 @@ static room_t *list_rooms(private_database_t *this)
 	char **room_list = NULL;
     int res = sqlite3_get_table(this->db, sql_buffer, &room_list, &nrow,
                                 &ncolumn, NULL);
-	struct room_t *rooms = NULL;    
+	struct room_t *rooms = NULL;
+
 	if (res == SQLITE_OK)
 	{
+        /* TODO: check malloc failed */
         rooms = (struct room_t*)malloc(nrow*sizeof(struct room_t));
+        if (rooms == NULL){
+            log_ret("list_rooms: malloc failed");
+            exit(EXIT_FAILURE);
+        }
+        memset(rooms, 0, nrow*sizeof(struct room_t));
 		int index = ncolumn;
         int i = 0;
 		for(i = 0; i < nrow; i++)
 		{
-            
             /* TODO_: use strncpy instead of strcpy */
-			strncpy(rooms[i].roomname, room_list[index], strlen(room_list[index]));
+			strncpy(rooms[i].roomname, room_list[index],
+                    strlen(room_list[index]));
             log_ret("list_rooms: %s", room_list[index]);
 			index++;
-			strncpy(rooms[i].owner, room_list[index], strlen(room_list[index]));
+
+            strncpy(rooms[i].owner, room_list[index],
+                    strlen(room_list[index]));
             log_ret("list_rooms: %s", room_list[index]);            
 			index++;
-			strncpy(rooms[i].desc, room_list[index], strlen(room_list[index]));
+
+            strncpy(rooms[i].desc, room_list[index],
+                    strlen(room_list[index]));
             log_ret("list_rooms: %s", room_list[index]);            
 			index++;
 		}
-	}
+        *row = nrow;
+	} else {
+        *row = 0;
+    }
 	sqlite3_free_table(room_list);
 	return rooms;
 
@@ -307,6 +328,10 @@ static database_log_t *list_logs(private_database_t *this)
 	if (res == SQLITE_OK)
 	{
         logs = (struct database_log_t*)malloc(nrow*sizeof(struct database_log_t));
+        if (logs == NULL){
+            log_ret("list_logs: malloc failed");
+            exit(EXIT_FAILURE);
+        }
 		int index = ncolumn;
         int i = 0;
 		for(i = 0; i < nrow; i++)
@@ -366,7 +391,31 @@ static int save_log(private_database_t *this, database_log_t *log)
 
 	return 0;
 }
+
+static int create_default_user_room(private_database_t *this)
+{
+    user_t user;
     
+	strcpy(user.username, "gentoo");
+	strcpy(user.password, "gentoo");
+    create_user(this, &user);
+
+    strcpy(user.username, "emacs");
+	strcpy(user.password ,"emacs");
+    create_user(this, &user);
+    
+    room_t room;
+    strcpy(room.roomname, "gentoo");
+    strcpy(room.owner, "gentoo");
+    strcpy(room.desc, "welcome to gentoo world");
+    create_room(this, &room);
+    
+    strcpy(room.roomname, "emacs");
+    strcpy(room.owner, "emacs");
+    strcpy(room.desc, "welcome to emacs world");
+    create_room(this, &room);    
+}
+
 static void destroy(private_database_t *this)
 {
     free(this);
@@ -375,6 +424,10 @@ static void destroy(private_database_t *this)
 database_t *database_create()
 {    
     private_database_t *this = malloc(sizeof(private_database_t));
+    if (this == NULL){
+        log_ret("database_create: malloc failed");
+        exit(EXIT_FAILURE);
+    }
     this->db = NULL;
     this->public.open_db = (int (*)(database_t *this, char *db_name))open_db;
     this->public.close_db = (int (*)(database_t *this))close_db;
@@ -389,16 +442,19 @@ database_t *database_create()
         delete_user;
 
     this->public.create_room = (int (*)(database_t *this, room_t *room))
-                                create_room;
-    this->public.list_rooms = (room_t *(*)(database_t *this))list_rooms;
-    this->public.list_users = (user_t *(*)(database_t *this))list_users;
-    this->public.list_logs = (database_log_t *(*)(database_t *this))list_logs;        
+                               create_room;
+    this->public.list_rooms = (room_t *(*)(database_t *this, int *row))
+                              list_rooms;
+    this->public.list_users = (user_t *(*)(database_t *this, int *row))
+                              list_users;
+    this->public.list_logs = (database_log_t *(*)(database_t *this))
+                              list_logs;        
 
     this->public.delete_room = (int (*)(database_t *this, room_t *room))
-        delete_room;
+                               delete_room;
 
     this->public.save_log = (int (*)(database_t *this, database_log_t *log))
-        save_log;
+                            save_log;
     
     this->public.destroy = (void (*)(database_t *this))destroy;
 

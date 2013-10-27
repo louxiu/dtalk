@@ -1,0 +1,1 @@
+SUBDIRS = src/dtalk_s src/dtalk_c

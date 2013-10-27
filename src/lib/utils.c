@@ -15,6 +15,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <string.h>
+#include <time.h>
 #include "debug.h"
 
 int make_socket_non_blocking(int fd)
@@ -83,4 +84,76 @@ int create_and_bind (int port)
     }
 
     return server_fd;
+}
+
+int get_current_time(char *date)
+{
+	time_t epoch_time = time(NULL);
+
+    /* convert to localtime */
+    struct tm *local_time = localtime(&epoch_time);
+
+    #define MAX_DATE_SIZE 20
+    
+    char tmp_buffer[MAX_DATE_SIZE] = {'\0'};
+    
+	sprintf(date, "%4d-", local_time->tm_year+1900);
+	if ((local_time->tm_mon+1) > 9){
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "%2d-", local_time->tm_mon+1);
+		strcat(date, tmp_buffer);
+	} else {
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "0%d-", local_time->tm_mon+1);
+		strcat(date, tmp_buffer);
+	}
+	if (local_time->tm_mday > 9){
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "%2d ", local_time->tm_mday);
+		strcat(date, tmp_buffer);
+	} else {
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "0%d ", local_time->tm_mday);
+		strcat(date, tmp_buffer);
+	}
+	if (local_time->tm_hour > 9){
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "%2d:", local_time->tm_hour);
+		strcat(date, tmp_buffer);
+	} else {
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "0%d:", local_time->tm_hour);
+		strcat(date, tmp_buffer);
+	}
+	if (local_time->tm_min > 9){
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "%2d:", local_time->tm_min);
+		strcat(date, tmp_buffer);
+	} else {
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "0%d:", local_time->tm_min);
+		strcat(date, tmp_buffer);
+	}
+	if (local_time->tm_sec > 9) {
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "%2d", local_time->tm_sec);
+		strcat(date, tmp_buffer);
+	} else {
+		memset(tmp_buffer, 0, MAX_DATE_SIZE);
+		sprintf(tmp_buffer, "0%d", local_time->tm_sec);
+		strcat(date, tmp_buffer);
+	}
+	return 0;
+}
+
+unsigned int BKDRHash(char *str, unsigned int mod)
+{
+	unsigned int seed = 131; // 31 131 1313 13131 131313 etc..
+	unsigned int hash = 0;
+ 
+	while (*str){
+		hash = hash * seed + (*str++);
+	}
+ 
+	return (hash & 0x7FFFFFFF) % mod;
 }
