@@ -18,3 +18,12 @@
    4.2 run the client 
        ./install/bin/dtalk_c
        /help call the help command
+
+
+NOTE: 
+      default user1: gentoo  password: gentoo
+      default user2: emacs   password: gentoo
+
+      default room1: gentoo
+      default room2: emacs
+
